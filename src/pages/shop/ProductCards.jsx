@@ -1,4 +1,4 @@
-// ========================= components/shop/ProductCards.jsx =========================
+// ========================= src/components/shop/ProductCards.jsx =========================
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import RatingStars from '../../components/RatingStars';
@@ -11,15 +11,15 @@ const ProductCards = ({ products }) => {
   const [addedItems, setAddedItems] = useState({});
   const { country } = useSelector((state) => state.cart);
 
-  const currency = country === 'الإمارات' ? 'د.إ' : 'ر.ع.';
-  const exchangeRate = country === 'الإمارات' ? 9.5 : 1;
+  const isAEDCountry = country === 'الإمارات' || country === 'دول الخليج';
+  const currency = isAEDCountry ? 'د.إ' : 'ر.ع.';
+  const exchangeRate = isAEDCountry ? 9.5 : 1;
 
-  // اعتبر هذه الأصناف "عطور" (يُسمح بإضافتها مباشرة إلى السلة)
   const PERFUME_CATEGORIES = new Set([
     'عطر', 'عطور', 'عطورات',
     'معطر الجسم', 'معطرات الجسم',
     'بودي ميست', 'بودي مسك', 'بخاخ الجسم',
-    'معطر الجو' // اختياري: أضِف أو احذف حسب منطق متجرك
+    'معطر الجو'
   ]);
 
   const isPerfume = (product) => {
@@ -41,13 +41,11 @@ const ProductCards = ({ products }) => {
   };
 
   const handleAddToCart = (productId, product) => {
-    // لأي منتج "غير العطور" انتقل لصفحة المنتج لإدخال المقاسات
     if (!isPerfume(product)) {
       navigate(`/shop/${productId}`);
       return;
     }
 
-    // منتجات العطور فقط: أضِف مباشرةً إلى السلة
     const originalPrice = product.regularPrice || product.price || 0;
     dispatch(addToCart({ ...product, price: originalPrice }));
     setAddedItems((prev) => ({ ...prev, [productId]: true }));
@@ -62,7 +60,7 @@ const ProductCards = ({ products }) => {
     const hasRealDiscount = product.oldPrice && product.oldPrice > getBasePriceForCompare(product);
 
     return (
-      <div className="space-y-1">
+      <div className="space-y-1 text-center">
         <div className="font-medium text-lg">
           {price.toFixed(2)} {currency}
         </div>
@@ -82,7 +80,6 @@ const ProductCards = ({ products }) => {
           ? Math.round(((product.oldPrice - basePrice) / product.oldPrice) * 100)
           : 0;
 
-        // تحديد حالة المخزون بشكل مرن
         const qtyCandidate = [product?.stock, product?.quantity, product?.availableQty, product?.available]
           .find((v) => Number.isFinite(Number(v)));
         const availableQty = qtyCandidate !== undefined ? Number(qtyCandidate) : undefined;
@@ -134,7 +131,7 @@ const ProductCards = ({ products }) => {
                 </div>
               )}
 
-              <div className='absolute top-3 right-3'>
+              <div className='absolute top-3 right-3 ' >
                 {!isOutOfStock ? (
                   <button
                     onClick={(e) => {
@@ -160,7 +157,7 @@ const ProductCards = ({ products }) => {
               </div>
             </div>
 
-            <div className='p-4'>
+            <div className='p-4 text-center'>
               <h4 className="text-lg font-semibold mb-1">{product.name || "اسم المنتج"}</h4>
               <p className="text-gray-500 text-sm mb-3">{product.category || "فئة غير محددة"}</p>
               {renderPrice(product)}

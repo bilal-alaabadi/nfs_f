@@ -45,6 +45,13 @@ const PaymentSuccess = () => {
                 }
               } catch {}
 
+              // ✅ بطاقة هدية لكل منتج: نأخذ من العنصر نفسه، وإن لم توجد نستخدم بطاقة الطلب العامة
+              const gc = item.giftCard && (item.giftCard.from || item.giftCard.to || item.giftCard.phone || item.giftCard.note)
+                ? item.giftCard
+                : (data.order.giftCard && (data.order.giftCard.from || data.order.giftCard.to || data.order.giftCard.phone || data.order.giftCard.note)
+                    ? data.order.giftCard
+                    : null);
+
               return {
                 productId: item.productId,
                 name: item.name || fetched.name || 'منتج',
@@ -55,6 +62,7 @@ const PaymentSuccess = () => {
                 image: item.image || fetched.image || '',
                 description: fetched.description || '',
                 price: item.price ?? fetched.regularPrice ?? fetched.price ?? 0,
+                giftCard: gc, // <-- نرفقها مع كل عنصر
               };
             })
           );
@@ -118,7 +126,7 @@ const PaymentSuccess = () => {
         <p className="text-gray-600">معرّف جلسة الدفع: {order.paymentSessionId}</p>
       )}
 
-      {/* عرض بطاقة الهدية إن وُجدت */}
+      {/* عرض بطاقة الهدية إن وُجدت (على مستوى الطلب) */}
       {hasGift && (
         <div className="mt-4 p-3 rounded-md bg-pink-50 border border-pink-200 text-pink-900 text-sm">
           <h4 className="font-semibold mb-2">بيانات بطاقة الهدية</h4>
@@ -179,6 +187,31 @@ const PaymentSuccess = () => {
                 )}
 
                 {renderMeasurements(product.measurements)}
+
+                {/* ✅ بطاقة الهدية الخاصة بهذا المنتج (إن وُجدت أو سقطت من الطلب العام) */}
+                {product.giftCard &&
+                  ((product.giftCard.from && String(product.giftCard.from).trim()) ||
+                    (product.giftCard.to && String(product.giftCard.to).trim()) ||
+                    (product.giftCard.phone && String(product.giftCard.phone).trim()) ||
+                    (product.giftCard.note && String(product.giftCard.note).trim())) && (
+                    <div className="mt-3 p-3 rounded-md bg-pink-50 border border-pink-200 text-pink-900 text-sm">
+                      <div className="font-semibold mb-1">بطاقة هدية</div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
+                        {product.giftCard.from && String(product.giftCard.from).trim() && (
+                          <div><span className="font-medium">من: </span>{product.giftCard.from}</div>
+                        )}
+                        {product.giftCard.to && String(product.giftCard.to).trim() && (
+                          <div><span className="font-medium">إلى: </span>{product.giftCard.to}</div>
+                        )}
+                        {product.giftCard.phone && String(product.giftCard.phone).trim() && (
+                          <div><span className="font-medium">رقم المستلم: </span>{product.giftCard.phone}</div>
+                        )}
+                        {product.giftCard.note && String(product.giftCard.note).trim() && (
+                          <div className="md:col-span-2"><span className="font-medium">ملاحظات الهدية: </span>{product.giftCard.note}</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
               </div>
             </div>
           ))}
@@ -228,7 +261,7 @@ const PaymentSuccess = () => {
 
           {/* إظهار بيانات الهدية داخل الملخص أيضًا */}
           {hasGift && (
-            <div className="rounded-md border border-pink-200 bg-pink-50 p-3 space-y-2">
+            <div className="rounded-md border  bg-pink-50 p-3 space-y-2">
               <div className="flex justify-between">
                 <span>نوع الطلب:</span>
                 <span className="font-semibold text-pink-700">هدية 🎁</span>

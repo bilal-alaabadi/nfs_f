@@ -8,7 +8,6 @@ const DEPOSIT_DEFAULT = 10; // قيمة المقدم الافتراضية
 
 const ManageOrders = () => {
   const { data: orders, error, isLoading, refetch } = useGetAllOrdersQuery();
-  const [selectedOrder, setSelectedOrder] = useState(null);
   const [viewOrder, setViewOrder] = useState(null);
   const [deleteOrder] = useDeleteOrderMutation();
 
@@ -22,20 +21,31 @@ const ManageOrders = () => {
     }
   };
 
-  const handleViewOrder = (order) => setViewOrder(order);
-
   const handlePrintOrder = () => window.print();
 
   const handleDownloadPDF = () => {
     const element = document.getElementById('order-details');
+    if (!element) return;
+
+    // ✅ فعّل نفس تنسيقات الطباعة + إجبار إظهار قسم المنتجات في الـ PDF
+    element.classList.add('for-pdf');
+
     const options = {
-      margin: [10, 10],
-      filename: `طلب_${viewOrder._id}.pdf`,
+      margin: [8, 8],
+      filename: `طلب_${viewOrder?._id || 'فاتورة'}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true, scrollY: 0 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'] },
     };
-    html2pdf().from(element).set(options).save();
+
+    html2pdf()
+      .from(element)
+      .set(options)
+      .save()
+      .finally(() => {
+        element.classList.remove('for-pdf');
+      });
   };
 
   const formatPrice = (price) => {
@@ -43,7 +53,7 @@ const ManageOrders = () => {
     return (isNaN(n) ? 0 : n).toFixed(2);
   };
 
-  // ===== إظهار قياسات/خيارات المنتج داخل تفاصيل الطلب =====
+  // ===== قياسات/خيارات المنتج =====
   const renderMeasurements = (m) => {
     if (!m || typeof m !== 'object') return null;
     const entries = Object.entries(m).filter(([_, v]) => v !== '' && v !== null && v !== undefined);
@@ -59,75 +69,57 @@ const ManageOrders = () => {
       </div>
     );
   };
-  // ===============================================================
 
-  // منطق العربون (المقدم)
-  const isDepositOrder = (order) =>
-    !!(order?.depositMode || order?.isDeposit || order?.deposit === true);
-
-  const paidAmount = (order) => Number(order?.amount || 0);
-
-  const remainingAmount = (order) =>
-    Number(order?.remainingAmount ?? order?.remaining ?? 0);
-
-  const shippingFeeSaved = (order) =>
-    Number(order?.shippingFee ?? order?.deliveryFee ?? 0);
-
-  // السعر الأصلي للطلب = (المدفوع + المتبقي) عندما يوجد مقدم، وإلا = المدفوع
-  const originalTotal = (order) => {
-    const paid = paidAmount(order);
-    const rem = remainingAmount(order);
-    return isDepositOrder(order) ? paid + rem : paid;
+  // ===== بطاقة الهدية لكل منتج =====
+  const hasGiftValues = (gc) => {
+    if (!gc || typeof gc !== 'object') return false;
+    const v = (x) => (x ?? '').toString().trim();
+    return !!(v(gc.from) || v(gc.to) || v(gc.phone) || v(gc.note));
+  };
+  const renderGiftCard = (gc) => {
+    if (!hasGiftValues(gc)) return null;
+    return (
+      <div className="mt-2 p-2 rounded-md bg-pink-50 border border-pink-200 text-[12px] text-pink-900 space-y-0.5">
+        <div className="font-semibold text-pink-700">بطاقة هدية</div>
+        {gc.from && String(gc.from).trim() && <div>من: {gc.from}</div>}
+        {gc.to && String(gc.to).trim() && <div>إلى: {gc.to}</div>}
+        {gc.phone && String(gc.phone).trim() && <div>رقم المستلم: {gc.phone}</div>}
+        {gc.note && String(gc.note).trim() && <div>ملاحظات: {gc.note}</div>}
+      </div>
+    );
   };
 
-  // تفصيـل توزيع المقدم (10 من ضمنه الشحن 2)
+  // ===== عربون =====
+  const isDepositOrder = (order) =>
+    !!(order?.depositMode || order?.isDeposit || order?.deposit === true);
+  const paidAmount = (order) => Number(order?.amount || 0);
+  const remainingAmount = (order) => Number(order?.remainingAmount ?? order?.remaining ?? 0);
+  const shippingFeeSaved = (order) => Number(order?.shippingFee ?? order?.deliveryFee ?? 0);
+  const originalTotal = (order) => (isDepositOrder(order) ? paidAmount(order) + remainingAmount(order) : paidAmount(order));
   const getDepositBreakdown = (order) => {
-    if (!isDepositOrder(order)) {
-      return {
-        depositAmount: 0,
-        deliveryCovered: 0,
-        productCovered: 0,
-        unused: 0,
-      };
-    }
-
-    const depositAmount =
-      Number(order?.depositAmount) > 0 ? Number(order?.depositAmount) : DEPOSIT_DEFAULT;
-
-    const shippingFee = shippingFeeSaved(order); // المحفوظ في الطلب
-    // نفترض أن السعر الأصلي = منتجات + شحن محفوظ
+    if (!isDepositOrder(order)) return { depositAmount: 0, deliveryCovered: 0, productCovered: 0, unused: 0 };
+    const depositAmount = Number(order?.depositAmount) > 0 ? Number(order?.depositAmount) : DEPOSIT_DEFAULT;
+    const shippingFee = shippingFeeSaved(order);
     const orig = originalTotal(order);
     const productSubtotal = Math.max(orig - shippingFee, 0);
-
-    const deliveryCovered = Math.min(shippingFee, depositAmount); // عادةً 2
-    const depositLeft = depositAmount - deliveryCovered;          // عادةً 8
-    const productCovered = Math.min(productSubtotal, depositLeft);
+    const deliveryCovered = Math.min(shippingFee, depositAmount);
+    const productCovered = Math.min(productSubtotal, depositAmount - deliveryCovered);
     const unused = Math.max(depositAmount - deliveryCovered - productCovered, 0);
-
-    return { depositAmount, deliveryCovered, productCovered, unused, productSubtotal, orig, shippingFee };
+    return { depositAmount, deliveryCovered, productCovered, unused };
   };
 
   const handleContactWhatsApp = (phone) => {
-    if (!phone) {
-      alert('رقم الهاتف غير متوفر');
-      return;
-    }
+    if (!phone) { alert('رقم الهاتف غير متوفر'); return; }
     const o = viewOrder || {};
     const cleanedPhone = phone.replace(/\D/g, '');
-
     const isDep = isDepositOrder(o);
     const paid = paidAmount(o);
     const rem = remainingAmount(o);
     const orig = originalTotal(o);
-
-    const linesProducts = (o.products || [])
-      .map(p => `- ${p.name} (${p.quantity}x ${formatPrice(p.price)} ر.ع)`)
-      .join('\n');
-
+    const linesProducts = (o.products || []).map(p => `- ${p.name} (${p.quantity}x ${formatPrice(p.price)} ر.ع)`).join('\n');
     const depositBlock = isDep
       ? `\n\nطريقة الدفع: دفعة مقدم\nالمبلغ المدفوع: ${formatPrice(paid)} ر.ع\nالمتبقي: ${formatPrice(rem)} ر.ع\nالسعر الأصلي: ${formatPrice(orig)} ر.ع`
       : '';
-
     const message = `مرحباً ${o.customerName || 'عميلنا العزيز'},
         
 تفاصيل طلبك رقم: ${o.orderId}
@@ -138,7 +130,6 @@ ${isDep ? '' : `الإجمالي النهائي: ${formatPrice(o.amount || 0)} �
 ${linesProducts}${depositBlock}
 
 الرجاء تأكيد استلامك للطلب. شكراً لثقتكم بنا!`;
-
     window.open(`https://wa.me/${cleanedPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -149,7 +140,7 @@ ${linesProducts}${depositBlock}
     <div className="w-full p-2 md:p-4" dir="rtl">
       <div className="bg-white rounded-lg shadow-md p-4 w-full">
         <h2 className="text-xl md:text-2xl font-semibold mb-4 text-center md:text-right">إدارة الطلبات</h2>
-        
+
         {/* Mobile View - Cards */}
         <div className="md:hidden space-y-3">
           {orders?.length > 0 ? (
@@ -173,7 +164,7 @@ ${linesProducts}${depositBlock}
                     </span>
                   </div>
                 )}
-                
+
                 <div className="mt-3 flex justify-end gap-2">
                   <button
                     className="text-blue-500 hover:underline text-xs px-2 py-1 border border-blue-200 rounded"
@@ -191,9 +182,7 @@ ${linesProducts}${depositBlock}
               </div>
             ))
           ) : (
-            <div className="text-center py-4 text-gray-500">
-              لا توجد طلبات متاحة
-            </div>
+            <div className="text-center py-4 text-gray-500">لا توجد طلبات متاحة</div>
           )}
         </div>
 
@@ -244,9 +233,7 @@ ${linesProducts}${depositBlock}
                 ))
               ) : (
                 <tr>
-                  <td colSpan="4" className="py-4 text-center text-gray-500">
-                    لا توجد طلبات متاحة
-                  </td>
+                  <td colSpan="4" className="py-4 text-center text-gray-500">لا توجد طلبات متاحة</td>
                 </tr>
               )}
             </tbody>
@@ -256,50 +243,122 @@ ${linesProducts}${depositBlock}
         {/* Order Details Modal */}
         {viewOrder && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 md:p-4 z-50">
-            <div className="bg-white p-4 md:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto print-modal" id="order-details" dir="rtl">
-              <style>
-                {`
-                  @media print {
-                    body * {
-                      visibility: hidden;
-                    }
-                    .print-modal, .print-modal * {
-                      visibility: visible;
-                    }
-                    .print-modal {
-                      position: absolute;
-                      left: 0;
-                      top: 0;
-                      width: 100%;
-                      max-width: 100%;
-                      box-shadow: none;
-                      border: none;
-                      padding: 20px;
-                    }
-                    .print-modal button {
-                      display: none;
-                    }
-                    .print-header {
-                      display: flex;
-                      justify-content: space-between;
-                      align-items: center;
-                      margin-bottom: 20px;
-                      border-bottom: 1px solid #eee;
-                      padding-bottom: 10px;
-                    }
-                    .invoice-title {
-                      font-size: 24px;
-                      font-weight: bold;
-                      color: #333;
-                    }
-                    .invoice-meta {
-                      text-align: left;
-                    }
-                  }
-                `}
-              </style>
-              
-              <div className="print-header">
+            <div
+              className="bg-white p-4 md:p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto print-modal"
+              id="order-details"
+              dir="rtl"
+            >
+{/* ===== إصلاح الطباعة والـ PDF: توحيد المظهر وإجبار إظهار قسم المنتجات داخل الـ PDF حتى على الشاشات الصغيرة ===== */}
+<style>
+{`
+  @media print {
+    body * { visibility: hidden; }
+    .print-modal, .print-modal * { visibility: visible; }
+
+    html, body { font-size: 11px !important; line-height: 1.2 !important; }
+    @page { size: A4; margin: 8mm; }
+
+    .print-modal {
+      position: static !important;
+      left: auto !important;
+      top: auto !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      height: auto !important;
+      max-height: none !important;
+      overflow: visible !important;
+      box-shadow: none !important;
+      border: none !important;
+      padding: 12px !important;
+      background: #fff !important;
+    }
+
+    .print-section { break-inside: avoid !important; page-break-inside: avoid !important; }
+    table { page-break-inside: auto; }
+    tr, td, th { break-inside: avoid !important; page-break-inside: avoid !important; }
+
+    .text-sm { font-size: 11px !important; }
+    .text-xs { font-size: 9px !important; }
+    table, th, td { font-size: 10px !important; }
+
+    .p-4 { padding: 10px !important; }
+    .p-3 { padding: 8px !important; }
+    .px-3 { padding-left: 8px !important; padding-right: 8px !important; }
+    .py-2 { padding-top: 6px !important; padding-bottom: 6px !important; }
+    .mb-6 { margin-bottom: 12px !important; }
+
+    .print-header {
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      margin-bottom: 12px !important;
+      border-bottom: 1px solid #eee !important;
+      padding-bottom: 8px !important;
+    }
+    .invoice-title { font-size: 18px !important; font-weight: bold !important; color: #333 !important; }
+    .invoice-meta { text-align: left !important; font-size: 10px !important; }
+
+    .print-modal button { display: none !important; }
+    .screen-only { display: none !important; }
+  }
+
+  /* ================= PDF MODE =================
+     html2pdf يستخدم CSS شاشة، لذلك نكرر القواعد داخل .for-pdf
+     ونضيف Override لعرض قسم "المنتجات المطلوبة" دائماً.
+  */
+  .for-pdf.print-modal, .for-pdf.print-modal * { visibility: visible !important; }
+
+  .for-pdf {
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 12px !important;
+    background: #fff !important;
+  }
+
+  .for-pdf .print-section { break-inside: avoid !important; page-break-inside: avoid !important; }
+  .for-pdf table { page-break-inside: auto; }
+  .for-pdf tr, .for-pdf td, .for-pdf th { break-inside: avoid !important; page-break-inside: avoid !important; }
+
+  .for-pdf .text-sm { font-size: 11px !important; }
+  .for-pdf .text-xs { font-size: 9px !important; }
+  .for-pdf table, .for-pdf th, .for-pdf td { font-size: 10px !important; }
+
+  .for-pdf .p-4 { padding: 10px !important; }
+  .for-pdf .p-3 { padding: 8px !important; }
+  .for-pdf .px-3 { padding-left: 8px !important; padding-right: 8px !important; }
+  .for-pdf .py-2 { padding-top: 6px !important; padding-bottom: 6px !important; }
+  .for-pdf .mb-6 { margin-bottom: 12px !important; }
+
+  .for-pdf .print-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-bottom: 12px !important;
+    border-bottom: 1px solid #eee !important;
+    padding-bottom: 8px !important;
+  }
+  .for-pdf .invoice-title { font-size: 18px !important; font-weight: bold !important; color: #333 !important; }
+  .for-pdf .invoice-meta { text-align: left !important; font-size: 10px !important; }
+
+  .for-pdf button, .for-pdf .screen-only { display: none !important; }
+
+  /* 👇 أهم جزء لإظهار "المنتجات المطلوبة" داخل PDF حتى لو كان العرض Mobile:
+     عناصر الجدول لديك مخفية بـ .hidden md:block
+     هنا نجبر إظهارها داخل .for-pdf، ونخفي نسخة الموبايل لتجنّب التكرار. */
+  .for-pdf .hidden { display: block !important; }
+  .for-pdf .md\\:block { display: block !important; }
+  .for-pdf .md\\:hidden { display: none !important; }
+`}
+</style>
+
+              <div className="print-header print-section">
                 <div className="flex items-center gap-2">
                   <h1 className="invoice-title">فاتورة الطلب</h1>
                   {isDepositOrder(viewOrder) && (
@@ -315,7 +374,7 @@ ${linesProducts}${depositBlock}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 print-section">
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <h3 className="font-bold text-base md:text-lg mb-2 border-b pb-2">معلومات العميل</h3>
                   <div className="space-y-1 text-sm">
@@ -324,7 +383,6 @@ ${linesProducts}${depositBlock}
                     {viewOrder.email && <p><strong>البريد الإلكتروني:</strong> {viewOrder.email}</p>}
                   </div>
                 </div>
-                
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <h3 className="font-bold text-base md:text-lg mb-2 border-b pb-2">معلومات التوصيل</h3>
                   <div className="space-y-1 text-sm">
@@ -335,9 +393,9 @@ ${linesProducts}${depositBlock}
                 </div>
               </div>
 
-              {/* ====== بيانات بطاقة الهدية (إن وجدت) ====== */}
+              {/* بطاقة هدية على مستوى الطلب (إن وُجدت) */}
               {viewOrder?.giftCard && (viewOrder.giftCard.from || viewOrder.giftCard.to || viewOrder.giftCard.phone || viewOrder.giftCard.note) && (
-                <div className="bg-pink-50 p-3 rounded-lg mb-6 border border-pink-200">
+                <div className="bg-pink-50 p-3 rounded-lg mb-6 border border-pink-200 print-section">
                   <h3 className="font-bold text-base md:text-lg mb-2 border-b pb-2">بيانات بطاقة الهدية</h3>
                   <div className="space-y-1 text-sm">
                     {viewOrder.giftCard.from && <p><strong>من:</strong> {viewOrder.giftCard.from}</p>}
@@ -347,9 +405,8 @@ ${linesProducts}${depositBlock}
                   </div>
                 </div>
               )}
-              {/* ========================================= */}
 
-              <div className="mb-6">
+              <div className="mb-6 print-section">
                 <h3 className="font-bold text-base md:text-lg mb-2 border-b pb-2">المنتجات المطلوبة</h3>
                 <div className="border rounded-lg overflow-hidden">
                   <div className="hidden md:block">
@@ -369,9 +426,9 @@ ${linesProducts}${depositBlock}
                           <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                             <td className="py-2 px-3 text-center">{index + 1}</td>
                             <td className="py-2 px-3">
-                              <img 
-                                src={product.image || '/images/placeholder.jpg'} 
-                                alt={product.name || 'منتج'} 
+                              <img
+                                src={product.image || '/images/placeholder.jpg'}
+                                alt={product.name || 'منتج'}
                                 className="w-12 h-12 object-cover rounded mx-auto"
                                 onError={(e) => {
                                   e.target.src = '/images/placeholder.jpg';
@@ -382,13 +439,10 @@ ${linesProducts}${depositBlock}
                             <td className="py-2 px-3">
                               <div>
                                 <p className="font-medium text-sm">{product.name || 'منتج غير محدد'}</p>
-                                {product.selectedSize && (
-                                  <p className="text-xs text-gray-500">الحجم: {product.selectedSize}</p>
-                                )}
-                                {product.selectedColor && (
-                                  <p className="text-xs text-gray-500">اللون: {product.selectedColor}</p>
-                                )}
+                                {product.selectedSize && <p className="text-xs text-gray-500">الحجم: {product.selectedSize}</p>}
+                                {product.selectedColor && <p className="text-xs text-gray-500">اللون: {product.selectedColor}</p>}
                                 {renderMeasurements(product.measurements)}
+                                {renderGiftCard(product.giftCard)}
                               </div>
                             </td>
                             <td className="py-2 px-3 text-center">{product.quantity || 0}</td>
@@ -408,9 +462,9 @@ ${linesProducts}${depositBlock}
                       <div key={index} className="border-b p-3 last:border-b-0">
                         <div className="flex gap-3">
                           <div className="flex-shrink-0">
-                            <img 
-                              src={product.image || '/images/placeholder.jpg'} 
-                              alt={product.name || 'منتج'} 
+                            <img
+                              src={product.image || '/images/placeholder.jpg'}
+                              alt={product.name || 'منتج'}
                               className="w-12 h-12 object-cover rounded"
                               onError={(e) => {
                                 e.target.src = '/images/placeholder.jpg';
@@ -420,13 +474,10 @@ ${linesProducts}${depositBlock}
                           </div>
                           <div className="flex-grow">
                             <p className="font-medium text-sm">{product.name || 'منتج غير محدد'}</p>
-                            {product.selectedSize && (
-                              <p className="text-xs text-gray-500">الحجم: {product.selectedSize}</p>
-                            )}
-                            {product.selectedColor && (
-                              <p className="text-xs text-gray-500">اللون: {product.selectedColor}</p>
-                            )}
+                            {product.selectedSize && <p className="text-xs text-gray-500">الحجم: {product.selectedSize}</p>}
+                            {product.selectedColor && <p className="text-xs text-gray-500">اللون: {product.selectedColor}</p>}
                             {renderMeasurements(product.measurements)}
+                            {renderGiftCard(product.giftCard)}
                             <div className="flex justify-between mt-1">
                               <span className="text-xs">الكمية: {product.quantity || 0}</span>
                               <span className="text-xs font-medium">
@@ -440,77 +491,60 @@ ${linesProducts}${depositBlock}
                   </div>
                 </div>
               </div>
-              
- <div className="bg-gray-50 p-4 rounded-lg mb-6">
-  <h3 className="font-bold text-base md:text-lg mb-3 border-b pb-2">ملخص الفاتورة</h3>
 
-  {(() => {
-    const prods = Array.isArray(viewOrder?.products) ? viewOrder.products : [];
-    const productsSubtotal = prods.reduce(
-      (sum, p) => sum + Number(p?.price || 0) * Number(p?.quantity || 0),
-      0
-    );
-    const discount = Number(viewOrder?.pairDiscount ?? viewOrder?.discount ?? 0);
-    const productTotal = Math.max(0, productsSubtotal - discount); // السعر
-
-    // الشحن مع fallback إن كان غير محفوظ/0
-    const country = (viewOrder?.country || '').trim();
-    const defaultShipping = country === 'الإمارات' ? 4 : 2; // بالقيمة الأساسية ر.ع
-    const storedShipping = Number(viewOrder?.shippingFee);
-    const shipping = Number.isFinite(storedShipping) && storedShipping > 0
-      ? storedShipping
-      : defaultShipping;
-
-    const total = productTotal + shipping; // الإجمالي = السعر + الشحن
-
-    // المقدم = amount من الطلب (سواء كان عربون 10 أو كامل المبلغ)
-    const amount = Number(viewOrder?.amount || 0); // المقدم
-    const remaining = Math.max(0, total - amount); // المتبقي = الإجمالي - المقدم
-
-    const isDeposit = !!(viewOrder?.depositMode || viewOrder?.isDeposit);
-    const productTitle = prods.length === 1 ? (prods[0]?.name || 'منتج') : 'متعدد';
-
-    return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm border">
-          <thead className="bg-white">
-            <tr>
-              <th className="border px-3 py-2 text-right">المنتج</th>
-              <th className="border px-3 py-2 text-right"> السعر المنتج</th>
-              <th className="border px-3 py-2 text-right">التوصيل</th>
-              <th className="border px-3 py-2 text-right">الإجمالي</th>
-              <th className="border px-3 py-2 text-right">المقدم</th>
-              <th className="border px-3 py-2 text-right">المتبقي</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className={isDeposit ? 'bg-amber-50' : ''}>
-              <td className="border px-3 py-2">{productTitle}</td>
-              <td className="border px-3 py-2">{formatPrice(productTotal)} ر.ع</td>
-              <td className="border px-3 py-2">{formatPrice(shipping)} ر.ع</td>
-              <td className="border px-3 py-2">{formatPrice(total)} ر.ع</td>
-              <td className="border px-3 py-2">{formatPrice(amount)} ر.ع</td>
-              <td className="border px-3 py-2">{formatPrice(remaining)} ر.ع</td>
-            </tr>
-          </tbody>
-        </table>
-
-        {isDeposit && (
-          <p className="mt-2 text-xs text-gray-600">
-            * دفعة المقدم (10 ر.ع) تُحتسب ضمن الإجمالي (يشمل التوصيل).
-          </p>
-        )}
-
-        <div className="flex justify-between items-center mt-3">
-          <span>حالة الطلب:</span>
-          <span>{viewOrder?.status || '—'}</span>
-        </div>
-      </div>
-    );
-  })()}
-</div>
-
-
+              <div className="bg-gray-50 p-4 rounded-lg mb-6 print-section">
+                <h3 className="font-bold text-base md:text-lg mb-3 border-b pb-2">ملخص الفاتورة</h3>
+                {(() => {
+                  const prods = Array.isArray(viewOrder?.products) ? viewOrder.products : [];
+                  const productsSubtotal = prods.reduce((sum, p) => sum + Number(p?.price || 0) * Number(p?.quantity || 0), 0);
+                  const discount = Number(viewOrder?.pairDiscount ?? viewOrder?.discount ?? 0);
+                  const productTotal = Math.max(0, productsSubtotal - discount);
+                  const country = (viewOrder?.country || '').trim();
+                  const defaultShipping = country === 'الإمارات' ? 4 : 2; // ر.ع
+                  const storedShipping = Number(viewOrder?.shippingFee);
+                  const shipping = Number.isFinite(storedShipping) && storedShipping > 0 ? storedShipping : defaultShipping;
+                  const total = productTotal + shipping;
+                  const amount = Number(viewOrder?.amount || 0);
+                  const remaining = Math.max(0, total - amount);
+                  const isDeposit = !!(viewOrder?.depositMode || viewOrder?.isDeposit);
+                  const productTitle = prods.length === 1 ? (prods[0]?.name || 'منتج') : 'متعدد';
+                  return (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm border">
+                        <thead className="bg-white">
+                          <tr>
+                            <th className="border px-3 py-2 text-right">المنتج</th>
+                            <th className="border px-3 py-2 text-right">السعر المنتج</th>
+                            <th className="border px-3 py-2 text-right">التوصيل</th>
+                            <th className="border px-3 py-2 text-right">الإجمالي</th>
+                            <th className="border px-3 py-2 text-right">المقدم / المدفوع</th>
+                            <th className="border px-3 py-2 text-right">المتبقي</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className={isDeposit ? 'bg-amber-50' : ''}>
+                            <td className="border px-3 py-2">{productTitle}</td>
+                            <td className="border px-3 py-2">{formatPrice(productTotal)} ر.ع</td>
+                            <td className="border px-3 py-2">{formatPrice(shipping)} ر.ع</td>
+                            <td className="border px-3 py-2">{formatPrice(total)} ر.ع</td>
+                            <td className="border px-3 py-2">{formatPrice(amount)} ر.ع</td>
+                            <td className="border px-3 py-2">{formatPrice(remaining)} ر.ع</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      {isDeposit && (
+                        <p className="mt-2 text-xs text-gray-600">
+                          * دفعة المقدم (10 ر.ع) تُحتسب ضمن الإجمالي (يشمل التوصيل).
+                        </p>
+                      )}
+                      <div className="flex justify-between items-center mt-3">
+                        <span>حالة الطلب:</span>
+                        <span>{viewOrder?.status || '—'}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
 
               <div className="flex flex-wrap gap-2 justify-end">
                 <button
@@ -545,7 +579,7 @@ ${linesProducts}${depositBlock}
                   onClick={handleDownloadPDF}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14 2v17h2v-7h3v7h2v-17h-7zm-9 0v17h2v-7h3v7h2v-17h-9z"/>
+                    <path d="M14 2v17h2v-7h3v7h2v-17h-7zM5 2v17h2v-7h3v7h2V2H5z"/>
                   </svg>
                   تحميل PDF
                 </button>

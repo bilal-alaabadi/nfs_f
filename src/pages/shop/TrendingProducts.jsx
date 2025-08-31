@@ -1,4 +1,4 @@
-// ========================= components/shop/TrendingProducts.jsx =========================
+// ========================= src/components/shop/TrendingProducts.jsx =========================
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import RatingStars from '../../components/RatingStars';
@@ -20,7 +20,6 @@ const TrendingProducts = ({ onProductsLoaded }) => {
     limit: 20,
   });
 
-  // إشعار Home بانتهاء التحميل مرة واحدة فقط
   const notifiedRef = useRef(false);
   useEffect(() => {
     if (!isLoading && !notifiedRef.current) {
@@ -29,9 +28,9 @@ const TrendingProducts = ({ onProductsLoaded }) => {
     }
   }, [isLoading, onProductsLoaded]);
 
-  // العملة وسعر الصرف
-  const currency = country === 'الإمارات' ? 'د.إ' : 'ر.ع.';
-  const exchangeRate = country === 'الإمارات' ? 9.5 : 1;
+  const isAEDCountry = country === 'الإمارات' || country === 'دول الخليج';
+  const currency = isAEDCountry ? 'د.إ' : 'ر.ع.';
+  const exchangeRate = isAEDCountry ? 9.5 : 1;
 
   const loadMoreProducts = () => setVisibleProducts((prev) => prev + 4);
 
@@ -65,8 +64,7 @@ const TrendingProducts = ({ onProductsLoaded }) => {
   return (
     <section className="section__container product__container">
       <div className="relative text-center" dir="rtl">
-        <h2 className="text-[32px] font-normal text-[#CB908B] mb-1">أستكشف مجموعاتنا المميزة</h2>
-        <p className="text-[32px] font-bold text-[#3c3c3c] mb-4">عبر أقسامنا الفريدة</p>
+        <h2 className="text-[32px] font-normal text-[#CB908B] mb-1"> أحدث المنتجات</h2>
 
         <div className="flex items-center justify-center gap-3 relative z-10">
           <span className="flex-1 max-w-[100px] h-px bg-[#c8c5b9]"></span>
@@ -83,7 +81,6 @@ const TrendingProducts = ({ onProductsLoaded }) => {
             const discountPercentage =
               oldPrice && oldPrice !== price ? Math.round(((oldPrice - price) / oldPrice) * 100) : 0;
 
-            // تحديد حالة المخزون بشكل مرن
             const qtyCandidate = [product?.stock, product?.quantity, product?.availableQty, product?.available]
               .find((v) => Number.isFinite(Number(v)));
             const availableQty = qtyCandidate !== undefined ? Number(qtyCandidate) : undefined;
@@ -136,13 +133,13 @@ const TrendingProducts = ({ onProductsLoaded }) => {
                   )}
                 </div>
 
-                <div className="p-4">
+                <div className="p-4 text-center">
                   <h4 className="text-lg font-semibold mb-1 line-clamp-2" title={product.name}>
                     {product.name || 'اسم المنتج'}
                   </h4>
                   <p className="text-gray-500 text-sm mb-3">{product.category || 'فئة غير محددة'}</p>
 
-                  <div className="space-y-1">
+                  <div className="space-y-1 text-center">
                     <div className="font-medium text-lg">
                       {price.toFixed(2)} {currency}
                     </div>
@@ -152,10 +149,6 @@ const TrendingProducts = ({ onProductsLoaded }) => {
                       </s>
                     )}
                   </div>
-
-                  {/* <div className="mt-2">
-                    <RatingStars rating={product.rating || 4.5} />
-                  </div> */}
                 </div>
               </div>
             );

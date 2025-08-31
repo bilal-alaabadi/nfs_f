@@ -5,6 +5,7 @@ import card1 from "../../assets/IMG_0064.jpg";
 import card2 from "../../assets/IMG_3440.png";
 import card3 from "../../assets/IMG_3441.png";
 import card4 from "../../assets/IMG_0067.jpg";
+import log from "../../assets/Screenshot_2025-08-23_183158-removebg-preview.png"; // شعار الأنثور
 
 const cards = [
   { id: 1, image: card1, trend: '  ', title: 'تفصيل العبايات' },
@@ -31,11 +32,15 @@ const HeroSection = () => {
 
   return (
     <section className=' px-4 py-8'>
-      <div className='text-center mb-10'>
-        <h1 className='text-3xl md:text-4xl font-bold text-gray-800 relative inline-block'>
-          الاقسام
-          <span className='absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 md:w-20 h-1 bg-amber-500 rounded-full'></span>
-        </h1>
+      <div className="relative text-center" dir="rtl">
+        <h2 className="text-[32px] font-normal text-[#CB908B] mb-1">أستكشف مجموعاتنا المميزة</h2>
+        <p className="text-[32px] font-bold text-[#3c3c3c] mb-4">عبر أقسامنا الفريدة</p>
+
+        <div className="flex items-center justify-center gap-3 relative z-10">
+          <span className="flex-1 max-w-[100px] h-px bg-[#c8c5b9]"></span>
+          <img src={log} alt="شعار الأنثور" className="h-20 w-auto object-contain" />
+          <span className="flex-1 max-w-[100px] h-px bg-[#c8c5b9]"></span>
+        </div>
       </div>
 
       <div className='grid grid-cols-2 gap-4 md:gap-6'>

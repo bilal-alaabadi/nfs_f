@@ -1,28 +1,26 @@
-// ========================= SingleProduct.jsx =========================
+// ========================= src/pages/shop/SingleProduct.jsx =========================
 import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useFetchProductByIdQuery } from '../../../redux/features/products/productsApi';
-import { addToCart } from '../../../redux/features/cart/cartSlice';
+import { addToCart, clearGiftCard } from '../../../redux/features/cart/cartSlice';
 import ReviewsCard from '../reviews/ReviewsCard';
+import Card from './Card';
 
 const SingleProduct = () => {
   const { id } = useParams();
   const dispatch = useDispatch();
   const { data, error, isLoading } = useFetchProductByIdQuery(id);
-  const { country } = useSelector((state) => state.cart);
+  const { country, giftCard } = useSelector((state) => state.cart); // <-- نقرأ giftCard أيضًا
   const singleProduct = data;
   const productReviews = data?.reviews || [];
 
-  // سلايدر الصور
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageScale, setImageScale] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
 
-  // عداد الكمية (مرتبط مع السلة)
   const [cartQty, setCartQty] = useState(1);
 
-  // القياسات/الخيارات
   const [measurements, setMeasurements] = useState({
     length: '',
     sleeveLength: '',
@@ -35,9 +33,12 @@ const SingleProduct = () => {
     colorOption: ''
   });
 
-  // العملة وسعر الصرف للعرض فقط
-  const currency = country === 'الإمارات' ? 'د.إ' : 'ر.ع.';
-  const exchangeRate = country === 'الإمارات' ? 9.5 : 1;
+  // مفتاح لإعادة تركيب بطاقة الهدية بعد الإضافة (يمسح أي حالة داخلية)
+  const [giftResetKey, setGiftResetKey] = useState(0);
+
+  const isAEDCountry = country === 'الإمارات' || country === 'دول الخليج';
+  const currency = isAEDCountry ? 'د.إ' : 'ر.ع.';
+  const exchangeRate = isAEDCountry ? 9.5 : 1;
 
   useEffect(() => {
     setImageScale(1.05);
@@ -45,7 +46,6 @@ const SingleProduct = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // تزامن كمية الشيلات مع عداد السلة لعدم الازدواجية
   useEffect(() => {
     if (!singleProduct) return;
     if (singleProduct.category === 'الشيلات فرنسية' || singleProduct.category === 'الشيلات سادة') {
@@ -54,7 +54,6 @@ const SingleProduct = () => {
   }, [cartQty, singleProduct]);
 
   const handleAddToCart = (product) => {
-    // التحقق من الحقول المطلوبة حسب الفئة
     if (product.category === 'تفصيل العبايات') {
       if (!measurements.length || !measurements.sleeveLength ||
           !measurements.width || !measurements.color ||
@@ -78,7 +77,6 @@ const SingleProduct = () => {
       }
     }
 
-    // حساب خصم الشيلات: خصم "ريال لكل زوج"
     const isShayla =
       product.category === 'الشيلات فرنسية' || product.category === 'الشيلات سادة';
     const unitBasePrice = product.regularPrice || product.price || 0;
@@ -92,6 +90,12 @@ const SingleProduct = () => {
 
     setIsAddingToCart(true);
 
+    // <-- نرفق بطاقة الهدية مع عنصر السلة إن كانت تحتوي بيانات
+    const giftCardForLine =
+      giftCard && (giftCard.from || giftCard.to || giftCard.phone || giftCard.note)
+        ? { ...giftCard }
+        : null;
+
     const productToAdd = {
       ...product,
       price: unitBasePrice,
@@ -101,10 +105,16 @@ const SingleProduct = () => {
       lineTotal,
       currency,
       exchangeRate,
+      giftCard: giftCardForLine, // <-- هنا الإضافة المطلوبة
       promoTag: isShayla && pairsCount > 0 ? `خصم ريال لكل زوج ( ${pairsCount} زوج )` : null,
     };
 
+    // إضافة للسلة
     dispatch(addToCart(productToAdd));
+
+    // تفريغ بطاقة الهدية من الـ Redux + إعادة تركيب المكوّن لمسح أي ستايت داخلي
+    dispatch(clearGiftCard());
+    setGiftResetKey((k) => k + 1);
 
     setTimeout(() => {
       setIsAddingToCart(false);
@@ -135,7 +145,6 @@ const SingleProduct = () => {
     });
   };
 
-  // عداد الكمية (أزرار)
   const increaseQty = () => setCartQty((q) => q + 1);
   const decreaseQty = () => setCartQty((q) => (q > 1 ? q - 1 : 1));
 
@@ -143,7 +152,6 @@ const SingleProduct = () => {
   if (error) return <p>حدث خطأ أثناء تحميل تفاصيل المنتج.</p>;
   if (!singleProduct) return null;
 
-  // الأسعار للعرض
   const currentBasePrice = singleProduct.regularPrice || singleProduct.price || 0;
   const unitPrice = currentBasePrice * exchangeRate;
   const isShayla =
@@ -162,18 +170,7 @@ const SingleProduct = () => {
 
   return (
     <>
-      <section className=' bg-[#e2e5e5]'>
-        <h2 className='section__header capitalize'>صفحة المنتج الفردي</h2>
-        <div className='section__subheader space-x-2'>
-          <span className='hover:text-[#CB908B]'><Link to="/">الرئيسية</Link></span>
-          <i className="ri-arrow-right-s-line"></i>
-          <span className='hover:text-[#CB908B]'><Link to="/shop">المتجر</Link></span>
-          <i className="ri-arrow-right-s-line"></i>
-          <span className='hover:text-[#CB908B]'>{singleProduct.name}</span>
-        </div>
-      </section>
-
-      <section className='section__container mt-8' dir='rtl'>
+      <section className='section__container bg-gradient-to-r from-[#f8edf1] to-[#ffffff]  mt-8 ' dir='rtl'>
         <div className='flex flex-col items-center md:flex-row gap-8'>
           {/* الصور */}
           <div className='md:w-1/2 w-full relative'>
@@ -217,7 +214,6 @@ const SingleProduct = () => {
                   </>
                 )}
 
-                {/* جميع الصور في الأسفل */}
                 {singleProduct.image.length > 1 && (
                   <div className="mt-4 grid grid-cols-5 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8 gap-2">
                     {singleProduct.image.map((img, idx) => (
@@ -251,7 +247,6 @@ const SingleProduct = () => {
           <div className='md:w-1/2 w-full'>
             <h3 className='text-2xl font-semibold mb-4'>{singleProduct.name}</h3>
 
-            {/* ملاحظة جميلة خاصة بالدريسات */}
             {singleProduct.category === 'دريسات' && (
               <div className="mb-4">
                 <div className="relative overflow-hidden rounded-lg border border-rose-200 bg-gradient-to-l from-pink-100 to-rose-50 p-3 text-center text-rose-700 font-semibold">
@@ -265,7 +260,6 @@ const SingleProduct = () => {
               </div>
             )}
 
-            {/* عرض السعر والإجماليات */}
             <div className='mb-4'>
               <div className='text-xl text-[#CB908B] space-x-1 flex items-center gap-3'>
                 <span>سعر الوحدة: {unitPrice.toFixed(2)} {currency}</span>
@@ -275,7 +269,6 @@ const SingleProduct = () => {
               </div>
 
               <div className="mt-3 rounded-md p-3 text-sm">
-                {/* يظهر فقط إذا في خصم */}
                 {pairDiscount > 0 && (
                   <>
                     <div className="flex justify-between">
@@ -299,7 +292,6 @@ const SingleProduct = () => {
               </div>
             </div>
 
-            {/* معلومات */}
             <div className='flex flex-col space-y-2'>
               <p className="text-gray-500 mb-4 text-lg font-medium leading-relaxed">
                 <span className="text-gray-800 font-bold block">الفئة:</span>
@@ -311,41 +303,44 @@ const SingleProduct = () => {
               <span className="text-gray-600">{singleProduct.description}</span>
             </p>
 
-            {/* عداد الكمية العام */}
-            <div className="mb-6">
-              <label className="block text-gray-700 mb-2 font-semibold">الكمية</label>
-              <div className="inline-flex items-center gap-3 bg-gray-100 rounded-md p-2">
+            {/* عداد الكمية */}
+            <div className="mb-6 flex flex-col items-center text-center">
+              <label className="block text-gray-700 mb-3 font-bold text-lg">الكمية</label>
+
+              <div className="inline-flex items-center gap-4 bg-gray-100 rounded-lg p-3 shadow-sm">
                 <button
                   type="button"
                   onClick={decreaseQty}
-                  className="w-9 h-9 flex items-center justify-center rounded-md bg-[#CB908B] text-white hover:opacity-90"
+                  className="w-12 h-12 flex items-center justify-center rounded-md bg-[#CB908B] text-white text-xl font-bold hover:opacity-90"
                   aria-label="تقليل الكمية"
                 >
                   -
                 </button>
-                <div className="min-w-[3rem] text-center font-semibold">{cartQty}</div>
+
+                <div className="min-w-[3rem] text-center font-bold text-xl">{cartQty}</div>
+
                 <button
                   type="button"
                   onClick={increaseQty}
-                  className="w-9 h-9 flex items-center justify-center rounded-md bg-[#CB908B] text-white hover:opacity-90"
+                  className="w-12 h-12 flex items-center justify-center rounded-md bg-[#CB908B] text-white text-xl font-bold hover:opacity-90"
                   aria-label="زيادة الكمية"
                 >
                   +
                 </button>
               </div>
+
               {(singleProduct.category === 'الشيلات فرنسية' || singleProduct.category === 'الشيلات سادة') && (
-                <p className="text-xs text-gray-500 mt-1">* سيتم مزامنة هذه الكمية مع حقل كمية الشيلات.</p>
+                <p className="text-sm text-gray-500 mt-2">* سيتم مزامنة هذه الكمية مع حقل كمية الشيلات.</p>
               )}
             </div>
 
-            {/* قياسات العبايات */}
             {singleProduct.category === 'تفصيل العبايات' && (
-              <div className="mb-6">
+              <div className="mb-6 text-center">
                 <div className=" p-4 rounded-md">
                   <h4 className="text-lg font-semibold mb-4 text-[#CB908B]">تفاصيل القياسات المطلوبة</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-gray-700 mb-1">الطول (بالبوصة)</label>
+                      <label className="block text-gray-700 mb-1">الطول ( إنش)</label>
                       <input
                         type="number"
                         name="length"
@@ -357,7 +352,7 @@ const SingleProduct = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-gray-700 mb-1">طول الكم من نصف الرقبة (بالبوصة)</label>
+                      <label className="block text-gray-700 mb-1">طول الكم من نصف الرقبة ( إنش)</label>
                       <input
                         type="number"
                         name="sleeveLength"
@@ -369,7 +364,7 @@ const SingleProduct = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-gray-700 mb-1">العرض (بالبوصة)</label>
+                      <label className="block text-gray-700 mb-1">العرض ( إنش)</label>
                       <input
                         type="number"
                         name="width"
@@ -424,11 +419,11 @@ const SingleProduct = () => {
                       </select>
                     </div>
                   </div>
+                  <div className='pt-2'>ملاحظة : وقت الطلب يستغرق 5-25 يومًا.</div>
                 </div>
               </div>
             )}
 
-            {/* خيارات الشيلات */}
             {(singleProduct.category === 'الشيلات فرنسية' || singleProduct.category === 'الشيلات سادة') && (
               <div className="mb-6">
                 <div className=" p-4 rounded-md">
@@ -467,10 +462,9 @@ const SingleProduct = () => {
               </div>
             )}
 
-            {/* خيارات الدريسات */}
             {singleProduct.category === 'دريسات' && (
               <div className="mb-6">
-                <div className="bg-gray-100 p-4 rounded-md">
+                <div className=" p-4 rounded-md">
                   <h4 className="text-lg font-semibold mb-4 text-[#CB908B]">خيارات الدرسات</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -513,6 +507,11 @@ const SingleProduct = () => {
               </div>
             )}
 
+            {/* بطاقة هدية — تظهر لكل المنتجات وتُعاد تهيئتها بعد الإضافة */}
+            <div className="mb-6">
+              <Card key={giftResetKey} />
+            </div>
+
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -545,8 +544,7 @@ const SingleProduct = () => {
         </div>
       </section>
 
-      {/* التقييمات */}
-      <section className='section__container mt-8' dir='rtl'>
+      <section className='section__container bg-gradient-to-r from-[#f8edf1] to-[#ffffff] mt-8' dir='rtl'>
         <ReviewsCard productReviews={productReviews} />
       </section>
     </>

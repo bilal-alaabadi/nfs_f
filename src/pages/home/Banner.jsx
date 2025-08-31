@@ -4,17 +4,17 @@ import timings from "../../assets/متجر-عبايات04.png";
 
 const Banner = () => {
     return (
-        <div className="py-3 px-4">
-            <div className="text-right" dir='rtl'>
+        <div className="py-3"> {/* شلت px-4 */}
+            <div className="text-right" dir="rtl">
                 {/* يمكن إضافة محتوى هنا إذا لزم الأمر */}
             </div>
-            
-            <div className="mt-4 md:mt-8">
+
+            <div className="mt-4 px-1 md:mt-8">
                 <Link to="/shop">
-                    <img 
+                    <img
                         src={timings}
                         alt="صورة البانر"
-                        className="w-full h-auto object-cover md:object-contain 
+                        className="w-full h-auto object-cover md:object-contain
                                    max-h-[70vh] md:max-h-none
                                    rounded-lg shadow-md
                                    transform hover:scale-[1.01] transition-transform duration-300"

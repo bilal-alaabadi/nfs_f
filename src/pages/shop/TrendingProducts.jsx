@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import RatingStars from '../../components/RatingStars';
 import { useFetchAllProductsQuery } from '../../redux/features/products/productsApi';
 import { useSelector } from 'react-redux';
-import log from "../../assets/Screenshot_2025-08-23_183158-removebg-preview.png"; // شعار الأنثور
+import log from "../../assets/ChatGPT Image Sep 19, 2025, 01_36_18 PM.png"; // شعار الأنثور
 
 const TrendingProducts = ({ onProductsLoaded }) => {
   const [visibleProducts, setVisibleProducts] = useState(4);
@@ -64,7 +64,7 @@ const TrendingProducts = ({ onProductsLoaded }) => {
   return (
     <section className="section__container product__container">
       <div className="relative text-center" dir="rtl">
-        <h2 className="text-[32px] font-normal text-[#CB908B] mb-1"> أحدث المنتجات</h2>
+        <h2 className="text-[32px] font-normal text-[#a68b2c] mb-1"> أحدث المنتجات</h2>
 
         <div className="flex items-center justify-center gap-3 relative z-10">
           <span className="flex-1 max-w-[100px] h-px bg-[#c8c5b9]"></span>
@@ -93,7 +93,7 @@ const TrendingProducts = ({ onProductsLoaded }) => {
                 className="product__card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 relative flex flex-col h-full"
               >
                 {oldPrice && oldPrice !== price && (
-                  <div className="absolute top-3 left-3 bg-[#CB908B] text-white text-xs font-bold px-2 py-1 rounded-full z-10">
+                  <div className="absolute top-3 left-3 bg-[#a68b2c] text-white text-xs font-bold px-2 py-1 rounded-full z-10">
                     خصم {discountPercentage}%
                   </div>
                 )}
@@ -101,7 +101,7 @@ const TrendingProducts = ({ onProductsLoaded }) => {
                 <div className="relative flex-grow">
                   {!isOutOfStock ? (
                     <Link to={`/shop/${product._id}`} className="block h-full">
-                      <div className="h-80 w-full overflow-hidden">
+                      <div className="h-64 w-full overflow-hidden">
                         <img
                           src={product.image?.[0] || 'https://via.placeholder.com/300'}
                           alt={product.name || 'صورة المنتج'}
@@ -115,7 +115,7 @@ const TrendingProducts = ({ onProductsLoaded }) => {
                     </Link>
                   ) : (
                     <div className="block h-full cursor-not-allowed select-none relative" aria-disabled="true">
-                      <div className="h-80 w-full overflow-hidden">
+                      <div className="h-64 w-full overflow-hidden">
                         <img
                           src={product.image?.[0] || 'https://via.placeholder.com/300'}
                           alt={product.name || 'صورة المنتج'}

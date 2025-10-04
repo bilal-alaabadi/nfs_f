@@ -28,13 +28,16 @@ const Footer = () => {
         <div className="relative max-w-7xl mx-auto px-4 py-8 md:py-12 ">
           <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-6">
             {/* الشعار */}
-            <div className="shrink-0 self-start">
-              <img
-                src={log}
-                alt="شعار RF_COLLECTION"
-                className="w-28 md:w-40 object-contain select-none pointer-events-none"
-              />
-            </div>
+<div className="shrink-0 self-start">
+  <img
+    src={log}
+    alt="شعار نَفَــس"
+    className="w-28 md:w-40  object-contain select-none pointer-events-none transform -rotate-90 translate-y-4"
+  />
+</div>
+
+
+
 
             {/* وسائل الدفع */}
             <div className="text-white w-full md:w-auto md:ml-auto md:self-center">

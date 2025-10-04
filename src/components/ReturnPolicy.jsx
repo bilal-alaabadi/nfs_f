@@ -11,7 +11,7 @@ const ReturnPolicy = () => {
         </h1>
 
         {/* مقدمة الصفحة */}
-        <div className="mb-8 text-right space-y-4">
+        {/* <div className="mb-8 text-right space-y-4">
           <p className="text-gray-700 text-lg leading-relaxed">
             في سلطنة عُمان، انطلقت علامة <span className="font-semibold text-[#d3ae27]">NAFAS | نفس  </span> 
             لتقديم عطور وبخور فاخرة تجسّد الفخامة والأصالة بلمسة عصرية. 
@@ -20,7 +20,7 @@ const ReturnPolicy = () => {
           <p className="text-gray-600">
             نؤمن أن رضاك جزء أساسي من رسالتنا، ولذلك نوفر سياسة استرجاع واستبدال واضحة وسهلة لضمان راحتك وثقتك بمنتجاتنا.
           </p>
-        </div>
+        </div> */}
 
         {/* البنود الأساسية */}
         <div className="space-y-6 text-right">

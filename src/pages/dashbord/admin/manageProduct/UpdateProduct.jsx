@@ -5,7 +5,6 @@ import { useFetchProductByIdQuery, useUpdateProductMutation } from '../../../../
 import { useSelector } from 'react-redux';
 import TextInput from '../addProduct/TextInput';
 import SelectInput from '../addProduct/SelectInput';
-// مهم: استورد كمبوننت "التعديل" وليس تبع الإضافة
 import UploadImage from '../manageProduct/UploadImag';
 
 const categories = [
@@ -36,27 +35,19 @@ const UpdateProduct = () => {
     oldPrice: '',
     description: '',
     image: [],
-    inStock: true, // الخيار الأول والثابت: المنتج متوفر
+    inStock: true,
+    salesCount: 0, // قابل للتعديل
   });
 
   const [showSizeField, setShowSizeField] = useState(false);
-
-  // الصور الجديدة (Files)
   const [newImages, setNewImages] = useState([]);
-  // الصور التي سنبقيها من الصور الحالية (روابط)
   const [keepImages, setKeepImages] = useState([]);
 
   useEffect(() => {
     if (!productData) return;
-
-    // بعض الـ APIs ترجع { product, reviews } — نتعامل مع الحالتين
     const p = productData.product ? productData.product : productData;
 
-    const currentImages = Array.isArray(p?.image)
-      ? p.image
-      : p?.image
-      ? [p.image]
-      : [];
+    const currentImages = Array.isArray(p?.image) ? p.image : (p?.image ? [p.image] : []);
 
     setProduct({
       name: p?.name || '',
@@ -66,7 +57,8 @@ const UpdateProduct = () => {
       oldPrice: p?.oldPrice != null ? String(p.oldPrice) : '',
       description: p?.description || '',
       image: currentImages,
-      inStock: typeof p?.inStock === 'boolean' ? p.inStock : true, // افتراضي متوفر
+      inStock: typeof p?.inStock === 'boolean' ? p.inStock : true,
+      salesCount: typeof p?.salesCount === 'number' ? p.salesCount : 0, // جلب القيمة الحالية
     });
 
     setKeepImages(currentImages);
@@ -79,6 +71,12 @@ const UpdateProduct = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    // منع قيم سالبة في المبيعات
+    if (name === 'salesCount') {
+      const num = Number(value);
+      setProduct((prev) => ({ ...prev, salesCount: Number.isNaN(num) ? 0 : Math.max(0, num) }));
+      return;
+    }
     setProduct((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -115,12 +113,10 @@ const UpdateProduct = () => {
       formData.append('description', product.description);
       formData.append('size', product.size || '');
       formData.append('author', user?._id || '');
-      formData.append('inStock', product.inStock); // true = متوفر، false = انتهى المنتج
+      formData.append('inStock', product.inStock);
+      formData.append('salesCount', product.salesCount); // <-- إرسال عدد المبيعات
 
-      // الصور التي نُبقيها من القديمة
       formData.append('keepImages', JSON.stringify(keepImages || []));
-
-      // الصور الجديدة
       if (Array.isArray(newImages) && newImages.length > 0) {
         newImages.forEach((file) => formData.append('image', file));
       }
@@ -140,67 +136,38 @@ const UpdateProduct = () => {
     <div className="container mx-auto mt-8 px-4">
       <h2 className="text-2xl font-bold mb-6 text-right">تحديث المنتج</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <TextInput
-          label="اسم المنتج"
-          name="name"
-          placeholder="أكتب اسم المنتج"
-          value={product.name}
-          onChange={handleChange}
-          required
-        />
+        <TextInput label="اسم المنتج" name="name" placeholder="أكتب اسم المنتج" value={product.name} onChange={handleChange} required />
 
-        <SelectInput
-          label="صنف المنتج"
-          name="category"
-          value={product.category}
-          onChange={handleChange}
-          options={categories}
-          required
-        />
+        <SelectInput label="صنف المنتج" name="category" value={product.category} onChange={handleChange} options={categories} required />
 
         {showSizeField && (
-          <SelectInput
-            label="حجم الحناء"
-            name="size"
-            value={product.size}
-            onChange={handleChange}
-            options={sizes}
-            required={product.category === 'حناء بودر'}
-          />
+          <SelectInput label="حجم الحناء" name="size" value={product.size} onChange={handleChange} options={sizes} required={product.category === 'حناء بودر'} />
         )}
 
-        <TextInput
-          label="السعر الحالي"
-          name="price"
-          type="number"
-          placeholder="50"
-          value={product.price}
-          onChange={handleChange}
-          required
-        />
+        <TextInput label="السعر الحالي" name="price" type="number" placeholder="50" value={product.price} onChange={handleChange} required />
 
+        <TextInput label="السعر القديم (اختياري)" name="oldPrice" type="number" placeholder="100" value={product.oldPrice} onChange={handleChange} />
+
+        {/* عدد المبيعات — قابل للتعديل */}
         <TextInput
-          label="السعر القديم (اختياري)"
-          name="oldPrice"
+          label="عدد المبيعات"
+          name="salesCount"
           type="number"
-          placeholder="100"
-          value={product.oldPrice}
+          placeholder="0"
+          value={product.salesCount}
           onChange={handleChange}
         />
 
-        {/* كمبوننت التعديل: يعرض صور حالية + يحذف + يجمع ملفات جديدة */}
         <UploadImage
           name="image"
           id="image"
-          initialImages={product.image}   // صور حالية
-          setImages={setNewImages}        // ملفات جديدة
-          setKeepImages={setKeepImages}   // الصور التي سيتم الإبقاء عليها
+          initialImages={product.image}
+          setImages={setNewImages}
+          setKeepImages={setKeepImages}
         />
 
         <div className="text-right">
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-            وصف المنتج
-          </label>
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">وصف المنتج</label>
           <textarea
             name="description"
             id="description"
@@ -213,37 +180,20 @@ const UpdateProduct = () => {
           />
         </div>
 
-        {/* خيارات حالة التوفر: الخيار الأول ثابت (متوفر) والثاني (انتهى المنتج) */}
         <div className="flex items-center gap-6">
           <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="availability"
-              value="available"
-              checked={product.inStock === true}
-              onChange={() => setProduct((prev) => ({ ...prev, inStock: true }))}
-            />
+            <input type="radio" name="availability" value="available" checked={product.inStock === true} onChange={() => setProduct((prev) => ({ ...prev, inStock: true }))} />
             <span>المنتج متوفر</span>
           </label>
 
           <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="availability"
-              value="ended"
-              checked={product.inStock === false}
-              onChange={() => setProduct((prev) => ({ ...prev, inStock: false }))}
-            />
+            <input type="radio" name="availability" value="ended" checked={product.inStock === false} onChange={() => setProduct((prev) => ({ ...prev, inStock: false }))} />
             <span>انتهى المنتج</span>
           </label>
         </div>
 
         <div className="flex justify-end pt-4">
-          <button
-            type="submit"
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-            disabled={isUpdating}
-          >
+          <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50" disabled={isUpdating}>
             {isUpdating ? 'جاري التحديث...' : 'حفظ التغييرات'}
           </button>
         </div>

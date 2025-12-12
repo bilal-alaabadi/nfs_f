@@ -45,16 +45,17 @@ const SingleProduct = () => {
 
   return (
     <section className="section__container mt-8" dir="rtl">
-      <div className="flex flex-col items-center md:flex-row gap-8">
+      {/* مركز العناصر عموديًا وأفقيًا على الشاشات الصغيرة، ومحاذاة يمين على الكبيرة */}
+      <div className="flex flex-col items-center md:flex-row md:items-start md:justify-between gap-10 md:gap-12">
         {/* الصور */}
-        <div className="md:w-1/2 w-full relative">
+        <div className="md:w-1/2 w-full relative flex flex-col items-center">
           {images.length > 0 ? (
             <>
-              <div className="overflow-hidden rounded-md">
+              <div className="overflow-hidden rounded-md max-w-[520px] w-full">
                 <img
                   src={images[currentImageIndex]}
                   alt={data.name}
-                  className="w-full h-auto"
+                  className="w-full h-auto mx-auto"
                   onError={(e) => {
                     e.currentTarget.src = 'https://via.placeholder.com/800x800?text=Image+Not+Found';
                     e.currentTarget.alt = 'صورة غير متوفرة';
@@ -62,7 +63,7 @@ const SingleProduct = () => {
                 />
               </div>
 
-              {/* أزرار تنقل فوق الصورة */}
+              {/* أزرار تنقل */}
               {images.length > 1 && (
                 <>
                   <button
@@ -82,12 +83,12 @@ const SingleProduct = () => {
                 </>
               )}
 
-              {/* معرض الصور المصغرة أسفل الصورة الرئيسية */}
+              {/* معرض الصور المصغرة */}
               {images.length > 1 && (
-                <div className="mt-4">
-                  {/* على الشاشات الصغيرة: سطر أفقي قابل للتمرير، وعلى الشاشات الكبيرة: شبكة حلوة */}
+                <div className="mt-4 w-full">
+                  {/* موبايل: سطر قابل للتمرير ومتمركز */}
                   <div className="block md:hidden">
-                    <div className="flex gap-3 overflow-x-auto no-scrollbar">
+                    <div className="flex gap-3 overflow-x-auto no-scrollbar justify-center">
                       {images.map((img, idx) => {
                         const active = idx === currentImageIndex;
                         return (
@@ -114,7 +115,8 @@ const SingleProduct = () => {
                     </div>
                   </div>
 
-                  <div className="hidden md:grid grid-cols-6 lg:grid-cols-8 gap-3">
+                  {/* دِسك توب: شبكة ومتمركزة */}
+                  <div className="hidden md:grid grid-cols-6 lg:grid-cols-8 gap-3 place-items-center">
                     {images.map((img, idx) => {
                       const active = idx === currentImageIndex;
                       return (
@@ -129,7 +131,7 @@ const SingleProduct = () => {
                           <img
                             src={img}
                             alt={`${data.name} - ${idx + 1}`}
-                            className="w-full h-20 object-cover"
+                            className="w-24 h-20 object-cover"
                             onError={(e) => {
                               e.currentTarget.src = 'https://via.placeholder.com/150';
                               e.currentTarget.alt = 'صورة غير متوفرة';
@@ -143,50 +145,62 @@ const SingleProduct = () => {
               )}
             </>
           ) : (
-            <p>لا توجد صور متاحة.</p>
+            <p className="text-center">لا توجد صور متاحة.</p>
           )}
         </div>
 
         {/* التفاصيل */}
-        <div className="md:w-1/2 w-full">
-          <h3 className="text-2xl font-semibold mb-4 text-black">{data.name}</h3>
-          <p className="text-gray-700 mb-2">الفئة: {data.category}</p>
-          <p className="text-gray-700 mb-4">{data.description}</p>
+<div className="md:w-1/2 w-full flex flex-col items-center text-center md:items-start md:text-right pt-10">
+  <h3 className="text-2xl font-semibold mb-2 text-black">{data.name}</h3>
 
-          <div className="text-xl text-black mb-6">
-            السعر: {unitPrice.toFixed(2)} {currency}
-          </div>
+  <p className="text-gray-700 mb-2">الفئة: {data.category}</p>
 
-          {/* عداد الكمية */}
-          <div className="mb-6 flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => setCartQty((q) => (q > 1 ? q - 1 : 1))}
-              className="w-10 h-10 flex items-center justify-center bg-[#a68b2c] text-white rounded-md"
-              aria-label="تقليل الكمية"
-            >
-              -
-            </button>
-            <div className="min-w-[3rem] text-center font-bold text-lg text-black">
-              {cartQty}
-            </div>
-            <button
-              type="button"
-              onClick={() => setCartQty((q) => q + 1)}
-              className="w-10 h-10 flex items-center justify-center bg-[#a68b2c] text-white rounded-md"
-              aria-label="زيادة الكمية"
-            >
-              +
-            </button>
-          </div>
+  {typeof data.salesCount === 'number' && data.salesCount > 0 && (
+    <p className="text-green-600 text-xl font-bold mb-2">
+      عدد المبيعات: {data.salesCount}
+    </p>
+  )}
 
-          <button
-            onClick={handleAddToCart}
-            className="px-6 py-3 bg-[#a68b2c] text-white rounded-md hover:opacity-90"
-          >
-            إضافة إلى السلة
-          </button>
-        </div>
+  <p className="text-gray-700 mb-4 max-w-prose">
+    {data.description}
+  </p>
+
+  <div className="text-2xl text-black mb-6">
+    السعر: {unitPrice.toFixed(2)} {currency}
+  </div>
+
+  {/* عداد الكمية */}
+  <div className="mb-6 flex items-center justify-center md:justify-start gap-4 w-full">
+    <button
+      type="button"
+      onClick={() => setCartQty((q) => (q > 1 ? q - 1 : 1))}
+      className="w-10 h-10 flex items-center justify-center bg-[#a68b2c] text-white rounded-md"
+    >
+      -
+    </button>
+
+    <div className="min-w-[3rem] text-center font-bold text-lg text-black">
+      {cartQty}
+    </div>
+
+    <button
+      type="button"
+      onClick={() => setCartQty((q) => q + 1)}
+      className="w-10 h-10 flex items-center justify-center bg-[#a68b2c] text-white rounded-md"
+    >
+      +
+    </button>
+  </div>
+
+  <button
+    onClick={handleAddToCart}
+    className="px-8 py-3 bg-[#a68b2c] text-white rounded-md hover:opacity-90"
+  >
+    إضافة إلى السلة
+  </button>
+</div>
+
+
       </div>
     </section>
   );

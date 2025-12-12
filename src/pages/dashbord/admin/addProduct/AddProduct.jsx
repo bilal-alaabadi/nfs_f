@@ -21,7 +21,8 @@ const AddProduct = () => {
     price: '',
     description: '',
     oldPrice: '',
-    inStock: true, // متوفر افتراضياً
+    inStock: true,
+    salesCount: '', // جديد: عدد المبيعات
   });
 
   const [image, setImage] = useState([]);
@@ -32,7 +33,6 @@ const AddProduct = () => {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     if (name === 'ended' && type === 'checkbox') {
-      // إذا تم التأشير على "هل انتهى المنتج؟" = نعم → inStock = false
       setProduct((prev) => ({ ...prev, inStock: !checked }));
     } else {
       setProduct((prev) => ({ ...prev, [name]: value }));
@@ -62,12 +62,22 @@ const AddProduct = () => {
     try {
       await addProduct({
         ...product,
+        salesCount:
+          product.salesCount === '' ? undefined : Number(product.salesCount),
         image,
         author: user?._id,
       }).unwrap();
 
       alert('تمت أضافة المنتج بنجاح');
-      setProduct({ name: '', category: '', oldPrice: '', price: '', description: '', inStock: true });
+      setProduct({
+        name: '',
+        category: '',
+        oldPrice: '',
+        price: '',
+        description: '',
+        inStock: true,
+        salesCount: '',
+      });
       setImage([]);
       navigate('/shop');
     } catch (err) {
@@ -114,7 +124,7 @@ const AddProduct = () => {
           onChange={handleChange}
         />
 
-        {/* هل انتهى المنتج؟ (إذا تم التأشير = لا يمكن إضافته للسلة) */}
+        {/* هل انتهى المنتج؟ */}
         <div className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -125,6 +135,16 @@ const AddProduct = () => {
           />
           <label htmlFor="ended">هل انتهى المنتج؟</label>
         </div>
+
+        {/* 🔢 جديد: إدخال عدد المبيعات */}
+        <TextInput
+          label="عدد المبيعات (اختياري)"
+          name="salesCount"
+          type="number"
+          placeholder="0"
+          value={product.salesCount}
+          onChange={handleChange}
+        />
 
         <UploadImage
           name="image"

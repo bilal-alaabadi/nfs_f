@@ -50,28 +50,30 @@ const productsApi = createApi({
           : ["ProductList"],
     }),
 
-fetchProductById: builder.query({
-  query: (id) => `/product/${id}`, // تغيير المسار هنا
-  transformResponse: (response) => {
-    if (!response?.product) {
-      throw new Error('المنتج غير موجود');
-    }
-    
-    const { product } = response;
-    return {
-      _id: product._id,
-      name: product.name,
-      category: product.category,
-      size: product.size || '',
-      price: product.price,
-      oldPrice: product.oldPrice || '',
-      description: product.description,
-      image: Array.isArray(product.image) ? product.image : [product.image],
-      author: product.author
-    };
-  },
-  providesTags: (result, error, id) => [{ type: "Product", id }],
-}),
+    fetchProductById: builder.query({
+      query: (id) => `/product/${id}`, // تغيير المسار هنا
+      transformResponse: (response) => {
+        if (!response?.product) {
+          throw new Error('المنتج غير موجود');
+        }
+        
+        const { product } = response;
+        return {
+          _id: product._id,
+          name: product.name,
+          category: product.category,
+          size: product.size || '',
+          price: product.price,
+          oldPrice: product.oldPrice || '',
+          description: product.description,
+          image: Array.isArray(product.image) ? product.image : [product.image],
+          author: product.author,
+          // ✅ تمرير عدد المبيعات إلى الواجهة
+          salesCount: typeof product.salesCount === 'number' ? product.salesCount : 0,
+        };
+      },
+      providesTags: (result, error, id) => [{ type: "Product", id }],
+    }),
 
     // جلب المنتجات المرتبطة (منتجات مشابهة)
     fetchRelatedProducts: builder.query({

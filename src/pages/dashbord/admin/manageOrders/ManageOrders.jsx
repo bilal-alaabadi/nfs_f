@@ -108,6 +108,31 @@ const ManageOrders = () => {
     return { depositAmount, deliveryCovered, productCovered, unused };
   };
 
+  // ✅✅✅ (إضافة واحدة فقط) تحديد "دفع الشحن عند الاستلام" إذا المتبقي = 2 ر.ع
+  const isCODShipping = (order) => {
+    if (!order) return false;
+
+    const prods = Array.isArray(order?.products) ? order.products : [];
+    const productsSubtotal = prods.reduce(
+      (sum, p) => sum + Number(p?.price || 0) * Number(p?.quantity || 0),
+      0
+    );
+
+    const discount = Number(order?.pairDiscount ?? order?.discount ?? 0);
+    const productTotal = Math.max(0, productsSubtotal - discount);
+
+    const country = (order?.country || '').trim();
+    const defaultShipping = country === 'الإمارات' ? 4 : 2; // نفس منطقك في الملخص
+    const storedShipping = Number(order?.shippingFee);
+    const shipping = Number.isFinite(storedShipping) && storedShipping > 0 ? storedShipping : defaultShipping;
+
+    const total = productTotal + shipping;
+    const amount = Number(order?.amount || 0);
+    const remaining = Math.max(0, total - amount);
+
+    return remaining === 2;
+  };
+
   const handleContactWhatsApp = (phone) => {
     if (!phone) { alert('رقم الهاتف غير متوفر'); return; }
     const o = viewOrder || {};
@@ -145,7 +170,18 @@ ${linesProducts}${depositBlock}
         <div className="md:hidden space-y-3">
           {orders?.length > 0 ? (
             orders.map((order, index) => (
-              <div key={index} className="border rounded-lg p-3 shadow-sm">
+              <div key={index} className="border rounded-lg p-3 shadow-sm relative">
+{/* ✅ دائرة/وسم إذا المتبقي = 2 */}
+{isCODShipping(order) && (
+  <span
+    className="px-2 py-0.5 text-[10px] rounded-full bg-red-500 text-white whitespace-nowrap"
+    title="دفع الشحن عند الاستلام"
+  >
+    دفع عند الاستلام
+  </span>
+)}
+
+
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <p className="text-xs text-gray-500">
@@ -204,6 +240,18 @@ ${linesProducts}${depositBlock}
                     <td className="py-3 px-4 border-b">
                       <div className="flex items-center gap-2">
                         <span>{order?.orderId || '--'}</span>
+
+{/* ✅ دائرة/وسم إذا المتبقي = 2 */}
+{isCODShipping(order) && (
+  <span
+    className="px-2 py-0.5 text-[10px] rounded-full bg-red-500 text-white whitespace-nowrap"
+    title="دفع الشحن عند الاستلام"
+  >
+    دفع عند الاستلام
+  </span>
+)}
+
+
                         {isDepositOrder(order) && (
                           <span className="text-[10px] px-2 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
                             دفعة مقدم
@@ -302,10 +350,6 @@ ${linesProducts}${depositBlock}
     .screen-only { display: none !important; }
   }
 
-  /* ================= PDF MODE =================
-     html2pdf يستخدم CSS شاشة، لذلك نكرر القواعد داخل .for-pdf
-     ونضيف Override لعرض قسم "المنتجات المطلوبة" دائماً.
-  */
   .for-pdf.print-modal, .for-pdf.print-modal * { visibility: visible !important; }
 
   .for-pdf {
@@ -349,9 +393,6 @@ ${linesProducts}${depositBlock}
 
   .for-pdf button, .for-pdf .screen-only { display: none !important; }
 
-  /* 👇 أهم جزء لإظهار "المنتجات المطلوبة" داخل PDF حتى لو كان العرض Mobile:
-     عناصر الجدول لديك مخفية بـ .hidden md:block
-     هنا نجبر إظهارها داخل .for-pdf، ونخفي نسخة الموبايل لتجنّب التكرار. */
   .for-pdf .hidden { display: block !important; }
   .for-pdf .md\\:block { display: block !important; }
   .for-pdf .md\\:hidden { display: none !important; }

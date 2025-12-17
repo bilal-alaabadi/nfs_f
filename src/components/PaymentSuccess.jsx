@@ -231,10 +231,23 @@ const PaymentSuccess = () => {
                 </span>
               </div>
 
-              <div className="flex justify-between py-2">
-                <span>رسوم الشحن:</span>
-                <span className="font-semibold">{formatPrice(order.shippingFee)} {currency}</span>
-              </div>
+<div className="flex justify-between py-2">
+  <span>رسوم الشحن:</span>
+
+  {Number(order.shippingFee) === 0 ? (
+    <span
+      className="font-semibold text-red-600"
+      title="دفع الشحن عند الاستلام"
+    >
+      دفع الشحن عند الاستلام
+    </span>
+  ) : (
+    <span className="font-semibold">
+      {formatPrice(order.shippingFee)} {currency}
+    </span>
+  )}
+</div>
+
 
               <div className="flex justify-between py-2 border-t pt-3">
                 <span className="font-medium">الإجمالي النهائي:</span>

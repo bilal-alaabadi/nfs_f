@@ -37,7 +37,9 @@ const Checkout = () => {
       return gulfCountry === "الإمارات" ? 4 : 5;
     }
     // ✅ داخل عُمان: المنزل=2 ، المكتب=1
-    return shippingMethod === "المكتب" ? 1 : 2;
+    if (shippingMethod === "دفع الشحن عند الاستلام") return 0;
+return shippingMethod === "المكتب" ? 1 : 2;
+
   }, [country, gulfCountry, shippingMethod]);
 
   // بعد ذلك تُعرَض بحسب العملة المختارة (قد تُحوَّل إلى AED إن كانت دول الخليج)
@@ -272,6 +274,8 @@ const Checkout = () => {
                   >
                     <option value="المنزل">المنزل (2 ر.ع)</option>
                     <option value="المكتب">المكتب (1 ر.ع)</option>
+                    <option value="دفع الشحن عند الاستلام">دفع الشحن عند الاستلام</option>
+
                   </select>
                 </div>
               )}
@@ -395,7 +399,7 @@ const Checkout = () => {
               )}
 
               {/* رسوم الشحن تُخفى عند دفع المقدم */}
-              {!payDepositEffective && (
+{!payDepositEffective && baseShippingFee > 0 && (
                 <div className="flex justify-between items-center pt-2 border-t border-gray-200">
                   <span className="text-gray-800">رسوم الشحن</span>
                   <p className="text-gray-900">

@@ -13,7 +13,7 @@ const SingleProduct = () => {
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [cartQty, setCartQty] = useState(1);
-  const [addedMessage, setAddedMessage] = useState(false); // ⭐ جديد
+  const [addedMessage, setAddedMessage] = useState(false);
 
   const isAEDCountry = country === 'الإمارات' || country === 'دول الخليج';
   const currency = isAEDCountry ? 'د.إ' : 'ر.ع.';
@@ -37,36 +37,28 @@ const SingleProduct = () => {
       })
     );
 
-    setAddedMessage(true);   // ⭐ إظهار الرسالة
-    setCartQty(1);           // ⭐ تصفير العداد
+    setAddedMessage(true);
+    setCartQty(1);
 
     setTimeout(() => {
-      setAddedMessage(false); // ⭐ إخفاء الرسالة بعد 2 ثانية
+      setAddedMessage(false);
     }, 2000);
   };
-
-  const nextImage = () =>
-    setCurrentImageIndex((prev) => (images.length ? (prev === images.length - 1 ? 0 : prev + 1) : 0));
-
-  const prevImage = () =>
-    setCurrentImageIndex((prev) => (images.length ? (prev === 0 ? images.length - 1 : prev - 1) : 0));
 
   return (
     <section className="section__container mt-8" dir="rtl">
       <div className="flex flex-col items-center md:flex-row md:items-start md:justify-between gap-10 md:gap-12">
 
         {/* الصور */}
-        <div className="md:w-1/2 w-full relative flex flex-col items-center">
+        <div className="md:w-1/2 w-full flex flex-col items-center">
           {images.length > 0 ? (
-            <>
-              <div className="overflow-hidden rounded-md max-w-[520px] w-full">
-                <img
-                  src={images[currentImageIndex]}
-                  alt={data.name}
-                  className="w-full h-auto mx-auto"
-                />
-              </div>
-            </>
+            <div className="overflow-hidden rounded-md max-w-[520px] w-full">
+              <img
+                src={images[currentImageIndex]}
+                alt={data.name}
+                className="w-full h-auto mx-auto"
+              />
+            </div>
           ) : (
             <p className="text-center">لا توجد صور متاحة.</p>
           )}
@@ -81,6 +73,14 @@ const SingleProduct = () => {
           <p className="text-gray-700 mb-4 max-w-prose">
             {data.description}
           </p>
+
+          {/* ✅ عدد المبيعات */}
+{data.salesCount > 0 && (
+  <p className="text-green-600 mb-3 font-semibold">
+    عدد المبيعات: {data.salesCount}
+  </p>
+)}
+
 
           <div className="text-2xl text-black mb-6">
             السعر: {unitPrice.toFixed(2)} {currency}
@@ -117,7 +117,6 @@ const SingleProduct = () => {
             إضافة إلى السلة
           </button>
 
-          {/* ⭐ رسالة تم الإضافة */}
           {addedMessage && (
             <p className="mt-4 text-green-600 font-semibold">
               ✅ تم إضافة المنتج إلى السلة
